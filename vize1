@@ -1,0 +1,89 @@
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+
+#--------- 1. Görüntüyü yükle ve histogram çizdir --------------------------------
+image_path = 'C:/Users/mdogan/Desktop/goruntu3.png'
+image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+
+# Histogramı çiz
+hist, bins = np.histogram(image.flatten(), 256, [0, 256])
+plt.hist(image.flatten(), 256, [0, 256], color='blue')
+plt.title('Orijinal Histogram')
+plt.xlabel('Pixel Değeri')
+plt.ylabel('Frekans')
+plt.show()
+
+#------ 2. Histogram eşitle, histogram eşitlenmiş görüntüyü ve histogramını çizdir -----
+equalized_image = cv2.equalizeHist(image)
+cv2.imshow('Histogram Esitlenmis Resim', equalized_image)
+cv2.waitKey(0)
+
+plt.hist(equalized_image.flatten(), 256, [0, 256], color='blue')
+plt.title('Eşitlenmiş Histogram')
+plt.xlabel('Pixel Değeri')
+plt.ylabel('Frekans')
+plt.show()
+
+#-3. Görüntüye bicubic interpolasyon uygulayarak iki kat büyüt, görüntüyü ve histogramını çizdir
+height, width = equalized_image.shape
+new_height, new_width = height * 2, width * 2
+esitlenmis_ikikat = cv2.resize(equalized_image, (new_width, new_height), cv2.INTER_CUBIC)
+
+cv2.imshow('Esitlenmis (Cubic) Iki Kat Resim', esitlenmis_ikikat)
+cv2.waitKey(0)
+
+plt.hist(esitlenmis_ikikat.flatten(), 256, [0, 256], color='blue')
+plt.title('Esitlenmis (Cubic) Iki Kat Histogram')
+plt.xlabel('Pixel Değeri')
+plt.ylabel('Frekans')
+plt.show()
+
+#---4. Görüntüye unsharp masking ve highboost filtering uygula, görüntüyü ve histogramını çizdir-------
+gauss = cv2.GaussianBlur(esitlenmis_ikikat, (7, 7), 0)
+unsharp_mask = cv2.subtract(esitlenmis_ikikat, gauss)
+highboost_image = cv2.addWeighted(esitlenmis_ikikat, 2, unsharp_mask, -1, 0)
+cv2.imshow('highboost_image', highboost_image)
+cv2.waitKey(0)
+plt.hist(highboost_image.flatten(), 256, [0, 256], color='blue')
+plt.title('Highboost Histogram')
+plt.xlabel('Pixel Değeri')
+plt.ylabel('Frekans')
+plt.show()
+
+#-- 5. Highboost sonucunun dft2 sini alma dft2 yi shift etme, görüntüyü ve genlik spektrumunu çizdirme
+dft2 = np.fft.fft2(highboost_image)
+dft2_shifted = np.fft.fftshift(dft2)
+magnitude_spectrum = np.log(np.abs(dft2_shifted) + 1)
+plt.imshow(magnitude_spectrum, cmap='gray')
+plt.title('Highboost Magnitute Spectrum')
+plt.show()
+
+
+#--6.	Görüntüye yarı çapı 200 olan gauss alçak geçiren filtre uygulama gauss filtresini çizdirme
+
+rows, cols = highboost_image.shape
+center_row, center_col = rows // 2, cols // 2
+mask = np.zeros((rows, cols))
+
+for i in range(rows):
+    for j in range(cols):
+        distance = np.sqrt((i - center_row) ** 2 + (j - center_col) ** 2)
+        mask[i, j] = np.exp(-(distance ** 2) / (2 * (200 ** 2)))
+
+# Gauss filtresini çizdir
+plt.imshow(mask, cmap='gray')
+plt.title('Gauss Filtresi')
+plt.show()
+
+# Genlik spektrumu üzerine Gauss filtresini uygula
+filtered_magnitude_spectrum = magnitude_spectrum * mask
+
+# Filtrelenmiş Genlik Spektrumu
+plt.imshow(filtered_magnitude_spectrum, cmap='gray')
+plt.title('Filtrelenmiş Genlik Spektrumu')
+plt.show()
+
+#7.	Görüntünün ters dft2 sini alıp görüntünün son halini çizdirme
+#??
+cv2.destroyAllWindows()
